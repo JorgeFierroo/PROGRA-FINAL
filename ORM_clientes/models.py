@@ -1,6 +1,7 @@
 from sqlalchemy import Table, Column, Integer, ForeignKey, String
 from sqlalchemy.orm import relationship
 from database import Base
+from sqlalchemy.orm import Session
 
 class MenuIngrediente(Base):
     __tablename__ = "menu_ingrediente"
@@ -30,3 +31,16 @@ class Ingrediente(Base):
 
     # Relación con la tabla intermedia
     ingrediente_menus = relationship("MenuIngrediente", back_populates="ingrediente")
+
+    @classmethod
+    def obtener_ingrediente_por_nombre(cls, db: Session, nombre: str):
+        return db.query(cls).filter(cls.nombre == nombre).first()
+
+    @classmethod
+    def actualizar_cantidad_ingrediente(cls, db: Session, nombre: str, nueva_cantidad: int):
+        ingrediente = db.query(cls).filter(cls.nombre == nombre).first()
+        if ingrediente:
+            ingrediente.cantidad = nueva_cantidad
+            db.commit()
+            db.refresh(ingrediente)
+        return ingrediente
