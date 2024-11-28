@@ -1,4 +1,4 @@
-import customtkinter as ctk
+mport customtkinter as ctk
 from tkinter import messagebox, ttk
 from database import get_session
 from crud.ingrediente_crud import IngredienteCRUD
@@ -156,7 +156,7 @@ class App(ctk.CTk):
         self.treeview_menu_ingredientes2 = ttk.Treeview(frame_inferior, columns=("Nombre", "Cantidad"), show="headings")
         self.treeview_menu_ingredientes2.heading("Nombre", text="Nombre")
         self.treeview_menu_ingredientes2.heading("Cantidad", text="Cantidad")
-        self.treeview_ingredientes2.pack(pady=10, padx=10, fill="both", expand=True)
+        self.treeview_menu_ingredientes2.pack(pady=10, padx=10, fill="both", expand=True)
 
         self.actualizar_combobox_ingredientes() 
 
