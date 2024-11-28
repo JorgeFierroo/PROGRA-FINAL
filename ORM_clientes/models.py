@@ -1,7 +1,8 @@
-from sqlalchemy import Table, Column, Integer, ForeignKey, String
+from sqlalchemy import Table, Column, Integer, ForeignKey, String, Float, Date
 from sqlalchemy.orm import relationship
 from database import Base
 from sqlalchemy.orm import Session
+from datetime import date
 
 class MenuIngrediente(Base):
     __tablename__ = "menu_ingrediente"
@@ -44,3 +45,26 @@ class Ingrediente(Base):
             db.commit()
             db.refresh(ingrediente)
         return ingrediente
+    
+class Cliente(Base):
+    __tablename__ = 'clientes'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    nombre = Column(String(100), nullable=False)
+    email = Column(String(100), nullable=False, unique=True)
+    edad = Column(Integer, nullable=False)
+
+    pedidos = relationship("Pedido", back_populates="cliente", cascade="all, delete-orphan")
+
+class Pedido(Base):
+    __tablename__ = 'pedidos'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    descripcion = Column(String(255), nullable=False)
+    total = Column(Float, nullable=False)
+    fecha_creacion = Column(Date, default=date.today)
+    cantidad_menus = Column(Integer, nullable=False)
+
+    # Relación con el cliente
+    cliente_id = Column(Integer, ForeignKey('clientes.id'), nullable=False)
+    cliente = relationship("Cliente", back_populates="pedidos")
