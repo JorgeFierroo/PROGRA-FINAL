@@ -1,4 +1,4 @@
-mport customtkinter as ctk
+import customtkinter as ctk
 from tkinter import messagebox, ttk
 from database import get_session
 from crud.ingrediente_crud import IngredienteCRUD
@@ -550,9 +550,9 @@ class App(ctk.CTk):
 
         # Obtener los ingredientes del Treeview
         ingredientes_seleccionados = []
-        for item in self.treeview_ingredientes2.get_children():
-            nombre_ingrediente = self.treeview_ingredientes2.item(item, "values")[0]
-            cantidad_ingrediente = self.treeview_ingredientes2.item(item, "values")[1]
+        for item in self.treeview_menu_ingredientes2.get_children():
+            nombre_ingrediente = self.treeview_menu_ingredientes2.item(item, "values")[0]
+            cantidad_ingrediente = self.treeview_menu_ingredientes2.item(item, "values")[1]
         
             # Buscar el ingrediente en la base de datos
         ingrediente = db.query(Ingrediente).filter_by(nombre=nombre_ingrediente).first()
@@ -579,7 +579,7 @@ class App(ctk.CTk):
         # Limpiar los campos
         self.entry_menu_nombre.delete(0, 'end')
         self.entry_menu_descripcion.delete(0, 'end')
-        self.treeview_ingredientes2.delete(*self.treeview_ingredientes2.get_children())
+        self.treeview_menu_ingredientes2.delete(*self.treeview_menu_ingredientes2.get_children())
 
 
     def eliminar_menu(self):
@@ -610,11 +610,11 @@ class App(ctk.CTk):
                 # Verificar si la cantidad a agregar no excede la cantidad disponible
                 if cantidad_seleccionada <= ingrediente.cantidad:
                     # Agregar el ingrediente al Treeview
-                    for item in self.treeview_ingredientes2.get_children():
-                        values = self.treeview_ingredientes2.item(item, "values")
+                    for item in self.treeview_menu_ingredientes2.get_children():
+                        values = self.treeview_menu_ingredientes2.item(item, "values")
                         if values[0] == ingrediente_seleccionado:  # Ingrediente ya existe en el Treeview
                             nueva_cantidad = int(values[1]) + cantidad_seleccionada
-                            self.treeview_ingredientes2.item(item, values=(ingrediente_seleccionado, nueva_cantidad))
+                            self.treeview_menu_ingredientes2.item(item, values=(ingrediente_seleccionado, nueva_cantidad))
                             
                             # Actualizar la cantidad en la lista temporal
                             for ing in self.ingredientes_menu:
@@ -623,7 +623,7 @@ class App(ctk.CTk):
                             break
                     else:
                         # Nuevo ingrediente en el Treeview
-                        self.treeview_ingredientes2.insert("", "end", values=(ingrediente_seleccionado, cantidad_seleccionada))
+                        self.treeview_menu_ingredientes2.insert("", "end", values=(ingrediente_seleccionado, cantidad_seleccionada))
                         self.ingredientes_menu.append({"nombre": ingrediente_seleccionado, "cantidad": cantidad_seleccionada})
                     
                     # Actualizar la cantidad del ingrediente en la base de datos
@@ -638,10 +638,10 @@ class App(ctk.CTk):
 
     def quitar_ingrediente(self):
         """Quita el ingrediente seleccionado del menú y actualiza la base de datos."""
-        seleccion = self.treeview_ingredientes2.selection()
+        seleccion = self.treeview_menu_ingredientes2.selection()
         if seleccion:
             # Obtener los datos del ingrediente y la cantidad desde el TreeView
-            item = self.treeview_ingredientes2.item(seleccion)
+            item = self.treeview_menu_ingredientes2.item(seleccion)
             ingrediente_seleccionado = item["values"][0]
             cantidad_seleccionada = int(item["values"][1])
 
@@ -665,7 +665,7 @@ class App(ctk.CTk):
                     )
 
                 # Eliminar el ingrediente del TreeView
-                self.treeview_ingredientes2.delete(seleccion)
+                self.treeview_menu_ingredientes2.delete(seleccion)
 
                 # También eliminarlo de la lista temporal de ingredientes
                 self.ingredientes_menu = [
@@ -734,7 +734,7 @@ class App(ctk.CTk):
         self.ingredientes_menu.clear()
 
         # Limpiar el TreeView
-        self.treeview_ingredientes2.delete(*self.treeview_ingredientes2.get_children())
+        self.treeview_menu_ingredientes2.delete(*self.treeview_menu_ingredientes2.get_children())
 
         # Limpiar los campos del formulario
         self.entry_menu_nombre.delete(0, 'end')
