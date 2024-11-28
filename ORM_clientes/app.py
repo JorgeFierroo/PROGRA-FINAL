@@ -637,7 +637,7 @@ class App(ctk.CTk):
             db.close()
 
     def quitar_ingrediente(self):
-        """Quita el ingrediente seleccionado del menú y actualiza la lista local."""
+        """Quita el ingrediente seleccionado del menú y actualiza la base de datos."""
         seleccion = self.treeview_ingredientes2.selection()
         if seleccion:
             # Obtener los datos del ingrediente y la cantidad desde el TreeView
@@ -645,46 +645,72 @@ class App(ctk.CTk):
             ingrediente_seleccionado = item["values"][0]
             cantidad_seleccionada = int(item["values"][1])
 
-            # Verificar y actualizar la lista local de ingredientes del menú
-            for ingrediente in self.ingredientes_menu:
-                if ingrediente["nombre"] == ingrediente_seleccionado:
-                    ingrediente["cantidad"] += cantidad_seleccionada
-                    self.ingredientes_menu.remove(ingrediente)  # Eliminar el ingrediente de la lista local
-                    break
-            else:
-                print(f"El ingrediente '{ingrediente_seleccionado}' no estaba en la lista local.")
+            db = next(get_session())
 
-            # Eliminar el ingrediente del TreeView
-            self.treeview_ingredientes2.delete(seleccion)
+            try:
+                # Restaurar la cantidad del ingrediente en la base de datos
+                ingrediente = Ingrediente.obtener_ingrediente_por_nombre(db, ingrediente_seleccionado)
+                if ingrediente:
+                    nueva_cantidad = ingrediente.cantidad + cantidad_seleccionada
+                    Ingrediente.actualizar_cantidad_ingrediente(db, ingrediente_seleccionado, nueva_cantidad)
+                else:
+                    # Si el ingrediente no está en la base de datos (por alguna inconsistencia), agregarlo
+                    print(f"El ingrediente '{ingrediente_seleccionado}' no existe en la base de datos. Restaurando...")
+                    Ingrediente.crear_ingrediente(
+                        db,
+                        nombre=ingrediente_seleccionado,
+                        tipo="Desconocido",  # Sustituir según lógica de la aplicación
+                        cantidad=cantidad_seleccionada,
+                        unidad="unidad"     # Sustituir según lógica de la aplicación
+                    )
+
+                # Eliminar el ingrediente del TreeView
+                self.treeview_ingredientes2.delete(seleccion)
+
+                # También eliminarlo de la lista temporal de ingredientes
+                self.ingredientes_menu = [
+                    ing for ing in self.ingredientes_menu
+                    if ing["nombre"] != ingrediente_seleccionado or ing["cantidad"] != cantidad_seleccionada
+                ]
+
+                print(f"El ingrediente '{ingrediente_seleccionado}' ha sido eliminado del menú y restaurado en la base de datos.")
+            
+            except Exception as e:
+                db.rollback()
+                print(f"Ocurrió un error al quitar el ingrediente: {e}")
+            
+            finally:
+                db.close()
         else:
             print("Por favor, seleccione un ingrediente para eliminar.")
 
+
     def crear_menu(self):
-        """Crea un objeto Menu con su nombre, descripción y lista de ingredientes."""
+        """Crea un objeto Menu con su nombre, descripción y lista de ingredientes, y limpia el TreeView."""
         nombre_menu = self.entry_menu_nombre.get().strip()
         descripcion_menu = self.entry_menu_descripcion.get().strip()
-        
+
         if not nombre_menu:
             print("El nombre del menú no puede estar vacío.")
             return
-        
+
         db = next(get_session())
-        
+
         try:
             # Verificar si el menú ya existe
             menu_existente = db.query(Menu).filter_by(nombre=nombre_menu).first()
             if menu_existente:
                 print(f"El menú '{nombre_menu}' ya existe en la base de datos.")
                 return
-            
+
             # Crear el objeto Menu
             nuevo_menu = Menu(nombre=nombre_menu, descripcion=descripcion_menu)
-            
+
             # Usar los ingredientes almacenados en la lista temporal
             for ingrediente_data in self.ingredientes_menu:
                 ingrediente_nombre = ingrediente_data["nombre"]
                 cantidad = ingrediente_data["cantidad"]
-                
+
                 # Crear la relación MenuIngrediente
                 menu_ingrediente = MenuIngrediente(
                     menu_nombre=nombre_menu,
@@ -692,19 +718,27 @@ class App(ctk.CTk):
                     cantidad=cantidad
                 )
                 nuevo_menu.menu_ingredientes.append(menu_ingrediente)
-            
+
             # Agregar el nuevo menú a la base de datos
             db.add(nuevo_menu)
             db.commit()
             print(f"El menú '{nombre_menu}' se ha creado correctamente.")
+
         except Exception as e:
             db.rollback()
             print(f"Ocurrió un error al crear el menú: {e}")
         finally:
             db.close()
-        
+
         # Limpiar la lista de ingredientes temporal después de crear el menú
         self.ingredientes_menu.clear()
+
+        # Limpiar el TreeView
+        self.treeview_ingredientes2.delete(*self.treeview_ingredientes2.get_children())
+
+        # Limpiar los campos del formulario
+        self.entry_menu_nombre.delete(0, 'end')
+        self.entry_menu_descripcion.delete(0, 'end')
 
 
 
