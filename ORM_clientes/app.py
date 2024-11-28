@@ -36,7 +36,7 @@ class App(ctk.CTk):
         self.tab_clientes = self.tabview.add("Clientes")
         self.crear_formulario_cliente(self.tab_clientes)
 
-        # Pestaña de Clientes
+        # Pestaña de Panel de compra
         #self.tab_clientes = self.tabview.add("Panel de compra")
         #self.crear_formulario_cliente(self.tab_clientes)            #cambiar
 
@@ -44,7 +44,7 @@ class App(ctk.CTk):
         #self.tab_pedidos = self.tabview.add("Pedidos")
         #self.crear_formulario_pedido(self.tab_pedidos)
 
-        # Pestaña de Clientes
+        # Pestaña de Graficos
         #self.tab_graficos = self.tabview.add("Graficos")
         #self.crear_formulario_grafico(self.tab_graficos)
 
@@ -91,13 +91,13 @@ class App(ctk.CTk):
 
         # Fila 2 - Botones alineados horizontalmente en la segunda fila
         self.btn_crear_ingrediente = ctk.CTkButton(frame_superior, text="Añadir Ingrediente", command=self.crear_ingrediente)
-        self.btn_crear_ingrediente.grid(row=0, column=8, pady=10, padx=10)
+        self.btn_crear_ingrediente.grid(row=1, column=1, pady=10, padx=10)
 
         self.btn_actualizar_ingrediente = ctk.CTkButton(frame_superior, text="Actualizar Ingrediente", command=self.actualizar_ingrediente)
-        self.btn_actualizar_ingrediente.grid(row=0, column=9, pady=10, padx=10)
+        self.btn_actualizar_ingrediente.grid(row=1, column=3, pady=10, padx=10)
 
         self.btn_eliminar_ingrediente = ctk.CTkButton(frame_superior, text="Eliminar Ingrediente", command=self.eliminar_ingrediente)
-        self.btn_eliminar_ingrediente.grid(row=0, column=10, pady=10, padx=10)
+        self.btn_eliminar_ingrediente.grid(row=1, column=5, pady=10, padx=10)
 
         # Frame inferior para el Treeview
         frame_inferior = ctk.CTkFrame(parent)
@@ -115,6 +115,7 @@ class App(ctk.CTk):
 
     def crear_formulario_menu(self, parent):
         """Crea el formulario para crear un menú y seleccionar ingredientes."""
+        # Frame superior
         frame_superior = ctk.CTkFrame(parent)
         frame_superior.pack(pady=10, padx=10, fill="x")
 
@@ -147,12 +148,17 @@ class App(ctk.CTk):
         self.btn_crear_menu = ctk.CTkButton(frame_superior, text="Crear Menú", command=self.crear_menu)
         self.btn_crear_menu.grid(row=0, column=4, columnspan=3, pady=10, padx=10)
 
-        # Treeview para mostrar ingredientes añadidos al menú
-        self.treeview_ingredientes2 = ttk.Treeview(frame_superior, columns=("Nombre", "Cantidad"), show="headings")
-        self.treeview_ingredientes2.heading("Nombre", text="Nombre")
-        self.treeview_ingredientes2.heading("Cantidad", text="Cantidad")
-        self.treeview_ingredientes2.grid(row=3, column=0, columnspan=3, pady=10, padx=10, sticky="nsew")
-        self.actualizar_combobox_ingredientes()
+        # Frame inferior
+        frame_inferior = ctk.CTkFrame(parent)
+        frame_inferior.pack(pady=10, padx=10, fill="both", expand=True)
+
+        # Treeview para mostrar ingredientes añadidos al menú en el frame inferior
+        self.treeview_menu = ttk.Treeview(frame_inferior, columns=("Nombre", "Cantidad"), show="headings")
+        self.treeview_menu.heading("Nombre", text="Nombre")
+        self.treeview_menu.heading("Cantidad", text="Cantidad")
+        self.treeview_menu.pack(pady=10, padx=10, fill="both", expand=True)
+
+        self.actualizar_combobox_ingredientes() 
 
 
 
