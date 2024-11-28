@@ -153,10 +153,10 @@ class App(ctk.CTk):
         frame_inferior.pack(pady=10, padx=10, fill="both", expand=True)
 
         # Treeview para mostrar ingredientes añadidos al menú en el frame inferior
-        self.treeview_menu = ttk.Treeview(frame_inferior, columns=("Nombre", "Cantidad"), show="headings")
-        self.treeview_menu.heading("Nombre", text="Nombre")
-        self.treeview_menu.heading("Cantidad", text="Cantidad")
-        self.treeview_menu.pack(pady=10, padx=10, fill="both", expand=True)
+        self.treeview_menu_ingredientes2 = ttk.Treeview(frame_inferior, columns=("Nombre", "Cantidad"), show="headings")
+        self.treeview_menu_ingredientes2.heading("Nombre", text="Nombre")
+        self.treeview_menu_ingredientes2.heading("Cantidad", text="Cantidad")
+        self.treeview_ingredientes2.pack(pady=10, padx=10, fill="both", expand=True)
 
         self.actualizar_combobox_ingredientes() 
 
@@ -169,8 +169,8 @@ class App(ctk.CTk):
         frame_superior.pack(pady=10, padx=10, fill="x")
 
         ctk.CTkLabel(frame_superior, text="Nombre").grid(row=0, column=0, pady=10, padx=10)
-        self.entry_nombre = ctk.CTkEntry(frame_superior)
-        self.entry_nombre.grid(row=0, column=1, pady=10, padx=10)
+        self.entry_nombre_cliente = ctk.CTkEntry(frame_superior)
+        self.entry_nombre_cliente.grid(row=0, column=1, pady=10, padx=10)
 
         ctk.CTkLabel(frame_superior, text="Email").grid(row=0, column=2, pady=10, padx=10)
         self.entry_email = ctk.CTkEntry(frame_superior)
@@ -318,7 +318,7 @@ class App(ctk.CTk):
         db.close()
 
     def crear_cliente(self):
-        nombre = self.entry_nombre.get()
+        nombre = self.entry_nombre_cliente.get()
         email = self.entry_email.get()
         edad = self.entry_edad.get()
         if nombre and email and edad:
@@ -339,7 +339,7 @@ class App(ctk.CTk):
         if not selected_item:
             messagebox.showwarning("Selección", "Por favor, seleccione un cliente.")
             return
-        nombre = self.entry_nombre.get()
+        nombre = self.entry_nombre_cliente.get()
         email = self.entry_email.get()
         edad = self.entry_edad.get()
         if not nombre.strip():
@@ -349,7 +349,7 @@ class App(ctk.CTk):
             messagebox.showwarning("Campo Vacío", "Por favor, ingrese un email.")
             return
         email_viejo = self.treeview_clientes.item(selected_item)["values"][0]
-        nombre = self.entry_nombre.get()
+        nombre = self.entry_nombre_cliente.get()
         edad=self.entry_edad.get()
         if nombre:
             db = next(get_session())
