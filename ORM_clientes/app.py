@@ -9,7 +9,7 @@ from crud.menu_crud import MenuCRUD
 from crud.cliente_crud import ClienteCRUD
 from crud.pedido_crud import PedidoCRUD
 from database import get_session, engine, Base
-from models import Ingrediente, Menu, MenuIngrediente
+from models import Ingrediente, Menu, MenuIngrediente, Pedido
 # Configuración de la ventana principal
 ctk.set_appearance_mode("System")  # Opciones: "System", "Dark", "Light"
 ctk.set_default_color_theme("blue")  # Opciones: "blue", "green", "dark-blue"
@@ -352,22 +352,23 @@ class App(ctk.CTk):
     
     def crear_boleta(self):
         """Generar boleta y guardar en la base de datos."""
-
-        # Obtener los datos del Treeview (suponiendo que el usuario ya cargó los datos de cliente y menú)
+        # Obtener los datos del Treeview
         item_seleccionado = self.treeview_panel.focus()
         if not item_seleccionado:
             messagebox.showerror("Error", "Por favor, selecciona un pedido.")
             return
 
         datos_pedido = self.treeview_panel.item(item_seleccionado)["values"]
-        nombre_cliente = datos_pedido[0]
-        menu_seleccionado = datos_pedido[1]
-        cantidad = datos_pedido[2]
+        if len(datos_pedido) < 3:
+            messagebox.showerror("Error", "Faltan datos para generar la boleta.")
+            return
+
+        nombre_cliente, menu_seleccionado, cantidad = datos_pedido[:3]
 
         # Conectar a la base de datos
         db = next(get_session())
 
-        # Buscar el cliente y el menú
+        # Buscar cliente y menú
         cliente = ClienteCRUD.leer_cliente_por_email(db, nombre_cliente)
         menu = MenuCRUD.leer_menu_por_nombre(db, menu_seleccionado)
 
@@ -381,30 +382,35 @@ class App(ctk.CTk):
             db.close()
             return
 
-        # Calcular el total del pedido (esto debe basarse en el precio del menú y la cantidad)
-        total = menu.precio * cantidad
+        try:
+            cantidad = int(cantidad)  # Validar cantidad como número
+        except ValueError:
+            messagebox.showerror("Error", "Cantidad debe ser un número.")
+            db.close()
+            return
 
-        # Fecha de creación
+        total = menu.precio * cantidad
         fecha_creacion = date.today()
 
         # Crear la boleta en formato PDF
         archivo_pdf = self.generar_pdf(cliente, menu_seleccionado, cantidad, total, fecha_creacion)
 
         # Insertar el pedido en la base de datos
-        nuevo_pedido = PedidoCRUD(
+        nuevo_pedido = Pedido(
             descripcion=f"Pedido de {menu_seleccionado} para {cliente.nombre}",
             total=total,
             cantidad_menus=cantidad,
-            fecha_creacion=fecha_creacion,  # Se agrega la fecha de creación
-            cliente_id=cliente.id
+            fecha_creacion=fecha_creacion,
+            cliente_id=cliente.id,
         )
         db.add(nuevo_pedido)
-        db.commit()
+        if not PedidoCRUD._try_commit(db):
+            messagebox.showerror("Error", "No se pudo guardar el pedido en la base de datos.")
+            db.close()
+            return
 
-        # Mostrar un mensaje confirmando la creación de la boleta
+        # Confirmar creación
         messagebox.showinfo("Éxito", f"Boleta generada con éxito. El archivo PDF está en: {archivo_pdf}")
-
-        # Cerrar la conexión
         db.close()
 
     # Método para actualizar los menús en el Combobox
