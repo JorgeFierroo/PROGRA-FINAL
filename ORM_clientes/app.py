@@ -108,6 +108,8 @@ class App(ctk.CTk):
         self.btn_eliminar_ingrediente = ctk.CTkButton(frame_superior, text="Eliminar Ingrediente", command=self.eliminar_ingrediente)
         self.btn_eliminar_ingrediente.grid(row=1, column=5, pady=10, padx=10)
 
+        self.btn_actualizar_ingrediente = ctk.CTkButton(frame_superior, text="Actualizar datos", command=self.cargar_ingredientes)
+        self.btn_actualizar_ingrediente.grid(row=1, column=10, pady=10, padx=10)
         # Frame inferior para el Treeview
         frame_inferior = ctk.CTkFrame(parent)
         frame_inferior.pack(pady=10, padx=10, fill="both", expand=True)
@@ -266,20 +268,12 @@ class App(ctk.CTk):
         frame_superior.pack(pady=10, padx=10, fill="x")
 
         ctk.CTkLabel(frame_superior, text="Cliente Email").grid(row=0, column=0, pady=10, padx=10)
-        
         self.combobox_cliente_email_pedido = ttk.Combobox(frame_superior, state="readonly")
         self.combobox_cliente_email_pedido.grid(row=0, column=1, pady=10, padx=10)
-
-        # Llenar el combobox con emails de los clientes
-        self.actualizar_emails_combobox()
+        self.actualizar_emails_combobox_pedidos()
 
         # Asociamos el evento de selección de un email a una función
         self.combobox_cliente_email_pedido.bind("<<ComboboxSelected>>", self.cargar_pedidos_por_cliente)
-
-
-        # Botones alineados horizontalmente en el frame superior
-        self.btn_buscar_pedido = ctk.CTkButton(frame_superior, text="Buscar Pedidos", command=self.crear_pedido)
-        self.btn_buscar_pedido.grid(row=1, column=0, pady=10, padx=10)
 
         # Frame inferior para el Treeview
         frame_inferior = ctk.CTkFrame(parent)
@@ -295,7 +289,7 @@ class App(ctk.CTk):
         
         self.treeview_pedidos.pack(pady=10, padx=10, fill="both", expand=True)
 
-        self.cargar_pedidos()
+        
 
     def crear_formulario_grafico(self, parent):
         """Crea el formulario para seleccionar y mostrar gráficos estadísticos."""
@@ -544,6 +538,13 @@ class App(ctk.CTk):
         self.combobox_cliente_email.configure(values=emails)
         db.close()
 
+    def actualizar_emails_combobox_pedidos(self):
+        """Llena el Combobox con los emails de los clientes."""
+        db = next(get_session())
+        emails = [cliente.email for cliente in ClienteCRUD.leer_clientes(db)]
+        self.combobox_cliente_email_pedido.configure(values=emails)
+        db.close()
+
     # Métodos CRUD para Clientes
     def cargar_clientes(self):
         db = next(get_session())
@@ -612,18 +613,10 @@ class App(ctk.CTk):
         self.actualizar_emails_combobox()  # Actualizar el Combobox después de eliminar
         db.close()
 
-    # Métodos CRUD para Pedidos
-    def cargar_pedidos(self):
-        db = next(get_session())
-        self.treeview_pedidos.delete(*self.treeview_pedidos.get_children())
-        pedidos = PedidoCRUD.leer_pedidos(db)
-        for pedido in pedidos:
-            self.treeview_pedidos.insert("", "end", values=(pedido.descripcion, ))
-        db.close()
 
     def cargar_pedidos_por_cliente(self, event):
         """Carga los pedidos del cliente seleccionado en el Treeview"""
-        cliente_email = self.combobox_cliente_email.get()  # Obtener el email seleccionado del combobox
+        cliente_email = self.combobox_cliente_email_pedido.get()  # Obtener el email seleccionado del combobox
 
         # Si se ha seleccionado un email, proceder con la carga de los pedidos
         if cliente_email:

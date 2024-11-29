@@ -74,8 +74,26 @@ class PedidoCRUD:
         """Obtiene los pedidos asociados a un cliente específico por su email"""
         # Obtener el cliente por email
         cliente = db.query(Cliente).filter(Cliente.email == cliente_email).first()
-        
+
         if cliente:
             # Filtrar pedidos por el id del cliente
             return db.query(Pedido).filter(Pedido.cliente_id == cliente.id).all()
-        return []  # Si no se encuentra el cliente, retornar una lista vacía
+        
+        # Si no se encuentra el cliente, retornar una lista vacía
+        # Puede ser útil registrar un mensaje de log aquí si necesitas seguimiento
+        print(f"No se encontró el cliente con email: {cliente_email}")
+        return []
+
+
+
+    @staticmethod
+    def leer_pedidos_por_cliente(db, cliente_email, page=1, page_size=10):
+        """Obtiene los pedidos asociados a un cliente específico por su email, con soporte de paginación"""
+        cliente = db.query(Cliente).filter(Cliente.email == cliente_email).first()
+
+        if cliente:
+            return db.query(Pedido).filter(Pedido.cliente_id == cliente.id).limit(page_size).offset((page - 1) * page_size).all()
+        
+        print(f"No se encontró el cliente con email: {cliente_email}")
+        return []
+
