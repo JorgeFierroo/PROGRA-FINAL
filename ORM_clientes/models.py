@@ -2,7 +2,7 @@ from sqlalchemy import Table, Column, Integer, ForeignKey, String, Float, Date
 from sqlalchemy.orm import relationship
 from database import Base
 from sqlalchemy.orm import Session
-from datetime import date
+from datetime import datetime
 
 class MenuIngrediente(Base):
     __tablename__ = "menu_ingrediente"
@@ -63,7 +63,7 @@ class Pedido(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     descripcion = Column(String(255), nullable=False)
     total = Column(Float, nullable=False)
-    fecha_creacion = Column(Date, default=date.today)
+    fecha_creacion = Column(Date, default=datetime.now())
     cantidad_menus = Column(Integer, nullable=False)
 
     # Relación con el cliente

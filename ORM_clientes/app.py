@@ -1,15 +1,21 @@
 import customtkinter as ctk
 from tkinter import messagebox, ttk
-from datetime import date
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from reportlab.platypus import Table, TableStyle
+from reportlab.lib import colors
+from datetime import datetime
 from database import get_session
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from graficos import graficar_ventas_por_fecha, graficar_menus_mas_comprados, graficar_uso_ingredientes
 from crud.ingrediente_crud import IngredienteCRUD
 from crud.menu_crud import MenuCRUD
 from crud.cliente_crud import ClienteCRUD
 from crud.pedido_crud import PedidoCRUD
 from database import get_session, engine, Base
-from models import Ingrediente, Menu, MenuIngrediente, Pedido
+from models import Ingrediente, Menu, MenuIngrediente, Pedido, Cliente
+from graficos import graficar_menus_mas_comprados, graficar_uso_ingredientes, graficar_ventas_por_fecha
 # Configuración de la ventana principal
 ctk.set_appearance_mode("System")  # Opciones: "System", "Dark", "Light"
 ctk.set_default_color_theme("blue")  # Opciones: "blue", "green", "dark-blue"
@@ -44,12 +50,12 @@ class App(ctk.CTk):
         self.crear_formulario_panel_de_compra(self.tab_clientes)            #cambiar
 
         # Pestaña de Pedidos
-        #self.tab_pedidos = self.tabview.add("Pedidos")
-        #self.crear_formulario_pedido(self.tab_pedidos)
+        self.tab_pedidos = self.tabview.add("Pedidos")
+        self.crear_formulario_pedido(self.tab_pedidos)
 
         # Pestaña de Graficos
-        #self.tab_graficos = self.tabview.add("Graficos")
-        #self.crear_formulario_grafico(self.tab_graficos)
+        self.tab_graficos = self.tabview.add("Graficos")
+        self.crear_formulario_grafico(self.tab_graficos)
 
         # Revisar el cambio de pestaña periódicamente
         self.current_tab = self.tabview.get()  # Almacena la pestaña actual
@@ -261,93 +267,139 @@ class App(ctk.CTk):
 
         ctk.CTkLabel(frame_superior, text="Cliente Email").grid(row=0, column=0, pady=10, padx=10)
         
-        # Combobox para seleccionar el email del cliente
         self.combobox_cliente_email = ttk.Combobox(frame_superior, state="readonly")
         self.combobox_cliente_email.grid(row=0, column=1, pady=10, padx=10)
-        self.actualizar_emails_combobox()  # Llenar el combobox con emails de los clientes
 
-        ctk.CTkLabel(frame_superior, text="Descripción").grid(row=0, column=2, pady=10, padx=10)
-        self.entry_descripcion = ctk.CTkEntry(frame_superior)
-        self.entry_descripcion.grid(row=0, column=3, pady=10, padx=10)
+        # Llenar el combobox con emails de los clientes
+        self.actualizar_emails_combobox()
+
+        # Asociamos el evento de selección de un email a una función
+        self.combobox_cliente_email.bind("<<ComboboxSelected>>", self.cargar_pedidos_por_cliente)
+
 
         # Botones alineados horizontalmente en el frame superior
-        self.btn_crear_pedido = ctk.CTkButton(frame_superior, text="Crear Pedido", command=self.crear_pedido)
-        self.btn_crear_pedido.grid(row=1, column=0, pady=10, padx=10)
-
-        self.btn_actualizar_pedido = ctk.CTkButton(frame_superior, text="Actualizar Pedido", command=self.actualizar_pedido)
-        self.btn_actualizar_pedido.grid(row=1, column=1, pady=10, padx=10)
-
-        self.btn_eliminar_pedido = ctk.CTkButton(frame_superior, text="Eliminar Pedido", command=self.eliminar_pedido)
-        self.btn_eliminar_pedido.grid(row=1, column=2, pady=10, padx=10)
+        self.btn_buscar_pedido = ctk.CTkButton(frame_superior, text="Buscar Pedidos", command=self.crear_pedido)
+        self.btn_buscar_pedido.grid(row=1, column=0, pady=10, padx=10)
 
         # Frame inferior para el Treeview
         frame_inferior = ctk.CTkFrame(parent)
         frame_inferior.pack(pady=10, padx=10, fill="both", expand=True)
 
         # Treeview para mostrar los pedidos
-        self.treeview_pedidos = ttk.Treeview(frame_inferior, columns=("ID", "Cliente Email", "Descripción"), show="headings")
-        self.treeview_pedidos.heading("ID", text="ID")
-        self.treeview_pedidos.heading("Cliente Email", text="Cliente Email")
-        self.treeview_pedidos.heading("Descripción", text="Descripción")
+        self.treeview_pedidos = ttk.Treeview(frame_inferior, columns=("ID", "Descripción", "Total del Pedido", "Fecha de Creación", "Cantidad de Menús comprados"), show="headings")
+        self.treeview_pedidos.heading("ID", text="ID", command=lambda: self.ordenar_treeview(self.treeview_pedidos, columna=0))
+        self.treeview_pedidos.heading("Descripción", text="Descripción", command=lambda: self.ordenar_treeview(self.treeview_pedidos, columna=1))
+        self.treeview_pedidos.heading("Total del Pedido", text="Total del Pedido", command=lambda: self.ordenar_treeview(self.treeview_pedidos, columna=2))
+        self.treeview_pedidos.heading("Fecha de Creación", text="Fecha de Creación", command=lambda: self.ordenar_treeview(self.treeview_pedidos, columna=3))
+        self.treeview_pedidos.heading("Cantidad de Menús comprados", text="Cantidad de Menús comprados", command=lambda: self.ordenar_treeview(self.treeview_pedidos, columna=4))
+        
         self.treeview_pedidos.pack(pady=10, padx=10, fill="both", expand=True)
 
         self.cargar_pedidos()
 
     def crear_formulario_grafico(self, parent):
-        """Crea el formulario en el Frame superior y el Treeview en el Frame inferior para la gestión de clientes."""
-        # Frame superior para el formulario y botones
+        """Crea el formulario para seleccionar y mostrar gráficos estadísticos."""
+        # Frame superior para selección del gráfico
         frame_superior = ctk.CTkFrame(parent)
         frame_superior.pack(pady=10, padx=10, fill="x")
 
-        ctk.CTkLabel(frame_superior, text="Nombre").grid(row=0, column=0, pady=10, padx=10)
-        self.entry_nombre = ctk.CTkEntry(frame_superior)
-        self.entry_nombre.grid(row=0, column=1, pady=10, padx=10)
+    # Menú desplegable para seleccionar el tipo de gráfico
+        ctk.CTkLabel(frame_superior, text="Selecciona un tipo de gráfico:").grid(row=0, column=0, pady=10, padx=10)
+        self.combo_graficos = ctk.CTkComboBox(frame_superior, values=["Ventas por Fecha", "Menús Más Comprados", "Uso de Ingredientes"])
+        self.combo_graficos.grid(row=0, column=1, pady=10, padx=10)
 
-        ctk.CTkLabel(frame_superior, text="Tipo").grid(row=0, column=2, pady=10, padx=10)
-        self.entry_tipo = ctk.CTkEntry(frame_superior)
-        self.entry_tipo.grid(row=0, column=3, pady=10, padx=10)
+        # Botón para generar el gráfico
+        self.btn_generar_grafico = ctk.CTkButton(frame_superior, text="Generar Gráfico", command=self.generar_grafico)
+        self.btn_generar_grafico.grid(row=0, column=2, pady=10, padx=10)
 
-        # Botones alineados horizontalmente en el frame superior
-        self.btn_crear_cliente = ctk.CTkButton(frame_superior, text="Crear Ingrediete", command=self.crear_cliente)
-        self.btn_crear_cliente.grid(row=1, column=0, pady=10, padx=10)
+    def generar_grafico(self):
+        """Genera el gráfico según la opción seleccionada."""
+        tipo_grafico = self.combo_graficos.get()
 
-        # Frame inferior para el Treeview
-        frame_inferior = ctk.CTkFrame(parent)
-        frame_inferior.pack(pady=10, padx=10, fill="both", expand=True)
-
-        # Treeview para mostrar los clientes
-        self.treeview_clientes = ttk.Treeview(frame_inferior, columns=("Nombre", "Tipo"), show="headings")
-        self.treeview_clientes.heading("Nombre", text="Nombre")
-        self.treeview_clientes.heading("Tipo", text="Tipo")
-        self.treeview_clientes.pack(pady=10, padx=10, fill="both", expand=True)
+        if tipo_grafico == "Ventas por Fecha":
+            graficar_ventas_por_fecha()
+        elif tipo_grafico == "Menús Más Comprados":
+            graficar_menus_mas_comprados()
+        elif tipo_grafico == "Uso de Ingredientes":
+            graficar_uso_ingredientes()
+        else:
+            messagebox.showwarning("Advertencia", "Selecciona un tipo de gráfico válido.")
 
     def generar_pdf(self, cliente, menu_seleccionado, cantidad, total, fecha_creacion):
-        # Definir el nombre del archivo PDF
-        archivo_pdf = f"boleta_{cliente.nombre}_{fecha_creacion}.pdf"
-        
-        # Crear el objeto canvas (pdf)
-        c = canvas.Canvas(archivo_pdf, pagesize=letter)
-        
-        # Título
-        c.setFont("Helvetica", 16)
-        c.drawString(100, 750, "Boleta de Pedido")
+        # Nombre del archivo PDF
+        archivo_pdf = f"boleta_{cliente.nombre}_{fecha_creacion.strftime('%Y-%m-%d_%H-%M-%S')}.pdf"
 
-        # Datos del cliente
-        c.setFont("Helvetica", 12)
-        c.drawString(100, 730, f"Cliente: {cliente.nombre}")
-        c.drawString(100, 710, f"Email: {cliente.email}")
+        # Crear el objeto canvas (PDF)
+        c = canvas.Canvas(archivo_pdf, pagesize=letter)
+        width, height = letter  # Dimensiones de la página
+
+        # Margenes
+        margen_x = 50
+        margen_y = height - 50
+        linea_separacion = 20
+
+        # Encabezado
+        c.setFillColor(colors.lightgrey)
+        c.rect(0, height - 80, width, 80, fill=1)
+        c.setFillColor(colors.black)
+        c.setFont("Times-Italic", 18)
+        c.drawString(margen_x, height - 40, "Universidad Católica de Temuco")  # Subir el título
+        c.setFont("Times-Italic", 12)
+        c.drawString(margen_x, height - 60, "Boleta de Pedido")  # Subir el subtítulo
+
+        # Número de boleta
+        numero_boleta = f"{fecha_creacion.strftime('%Y%m%d')}-{datetime.now().strftime('%H%M%S')}"
+        margen_y -= 70  # Ajustar espacio después del título
+        c.setFont("Times-Italic", 12)
+        c.drawString(margen_x, margen_y, f"Número de Boleta: {numero_boleta}")
         
-        # Detalles del pedido
-        c.drawString(100, 690, f"Menú: {menu_seleccionado}")
-        c.drawString(100, 670, f"Cantidad: {cantidad}")
-        c.drawString(100, 650, f"Total: {total} CLP")
+        # Línea divisoria
+        margen_y -= 15  # Aumentar espacio entre el contenido y la línea
+        c.setLineWidth(0.5)
+        c.setStrokeColor(colors.grey)
+        c.line(margen_x, margen_y, width - margen_x, margen_y)
         
-        # Fecha de creación
-        c.drawString(100, 630, f"Fecha de creación: {fecha_creacion}")
+        # Información del cliente
+        margen_y -= 30
+        c.setFont("Times-Italic", 12)
+        c.drawString(margen_x, margen_y, "Información del Cliente:")
+        c.setFont("Times-Italic", 11)
+        c.drawString(margen_x, margen_y - linea_separacion, f"Nombre: {cliente.nombre}")
+        c.drawString(margen_x, margen_y - 2 * linea_separacion, f"Email: {cliente.email}")
+        
+        # Detalles del pedido en tabla
+        margen_y -= 80
+        c.setFont("Times-Italic", 12)
+        c.drawString(margen_x, margen_y, "Detalles del Pedido:")
+        
+        datos_pedido = [["Menú", "Cantidad", "Precio Unitario (CLP)", "Total (CLP)"],
+                        [menu_seleccionado, cantidad, f"{total / cantidad:.2f}", f"{total}"]]
+        
+        tabla = Table(datos_pedido, colWidths=[150, 100, 150, 100])
+        tabla.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Times-Italic'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+        tabla.wrapOn(c, margen_x, margen_y - 50)
+        tabla.drawOn(c, margen_x, margen_y - 100)
+        
+        # Fecha y hora de creación
+        margen_y -= 150
+        c.setFont("Times-Italic", 11)
+        c.drawString(margen_x, margen_y, f"Fecha de creación: {fecha_creacion.strftime('%Y-%m-%d')}")
+        c.drawString(margen_x, margen_y - linea_separacion, f"Hora de creación: {datetime.now().strftime('%H:%M:%S')}")
+
+        # Pie de página
+        c.setFont("Times-Italic", 10)
+        c.setFillColor(colors.darkgrey)
+        c.drawString(margen_x, 30, "Gracias por su preferencia. Si tiene dudas, contáctenos.")
 
         # Guardar el PDF
         c.save()
-    
         return archivo_pdf
     
     def crear_boleta(self):
@@ -390,7 +442,7 @@ class App(ctk.CTk):
             return
 
         total = menu.precio * cantidad
-        fecha_creacion = date.today()
+        fecha_creacion = datetime.now()
 
         # Crear la boleta en formato PDF
         archivo_pdf = self.generar_pdf(cliente, menu_seleccionado, cantidad, total, fecha_creacion)
@@ -566,8 +618,44 @@ class App(ctk.CTk):
         self.treeview_pedidos.delete(*self.treeview_pedidos.get_children())
         pedidos = PedidoCRUD.leer_pedidos(db)
         for pedido in pedidos:
-            self.treeview_pedidos.insert("", "end", values=(pedido.id, pedido.cliente_email, pedido.descripcion))
+            self.treeview_pedidos.insert("", "end", values=(pedido.descripcion, ))
         db.close()
+
+    def cargar_pedidos_por_cliente(self, event):
+        """Carga los pedidos del cliente seleccionado en el Treeview"""
+        cliente_email = self.combobox_cliente_email.get()  # Obtener el email seleccionado del combobox
+
+        # Si se ha seleccionado un email, proceder con la carga de los pedidos
+        if cliente_email:
+            db = next(get_session())
+            self.treeview_pedidos.delete(*self.treeview_pedidos.get_children())  # Limpiar el Treeview antes de llenarlo
+            pedidos = PedidoCRUD.leer_pedidos_por_cliente(db, cliente_email)  # Modificar el CRUD para aceptar un filtro de cliente
+            for pedido in pedidos:
+                # Suponiendo que la descripción, total y otros datos están disponibles en el objeto pedido
+                self.treeview_pedidos.insert("", "end", values=(pedido.id, pedido.descripcion, pedido.total, pedido.fecha_creacion, pedido.cantidad_menus))
+            db.close()
+
+    def ordenar_treeview(self, treeview, columna, reverse=None):
+        """
+        Ordena el Treeview según la columna especificada.
+        :param treeview: El widget Treeview que contiene los datos.
+        :param columna: La columna por la cual ordenar (en base a su índice o nombre).
+        :param reverse: Si se debe ordenar de manera descendente o ascendente.
+        """
+        # Si reverse es None, alterna el orden
+        if reverse is None:
+            reverse = False if not hasattr(self, 'reverse_order') else not self.reverse_order
+            self.reverse_order = reverse
+
+        # Obtener los elementos del Treeview en forma de lista de tuplas
+        datos = [(treeview.item(item)["values"], item) for item in treeview.get_children()]
+        
+        # Ordenar los datos según la columna seleccionada
+        datos.sort(key=lambda x: x[0][columna], reverse=reverse)
+        
+        # Reinsertar los elementos en el Treeview en el orden correcto
+        for index, (valor, item) in enumerate(datos):
+            treeview.item(item, values=valor)
 
     def crear_pedido(self):
         cliente_email = self.combobox_cliente_email.get()
