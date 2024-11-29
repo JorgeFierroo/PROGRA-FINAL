@@ -20,6 +20,10 @@ class ClienteCRUD:
     @staticmethod
     def leer_clientes(db: Session):
         return db.query(Cliente).all()
+    
+    @staticmethod
+    def leer_cliente_por_email(db: Session, email: str):
+        return db.query(Cliente).filter(Cliente.email == email).first()
 
     @staticmethod
     def actualizar_cliente(db: Session, cliente_email: str, nuevo_nombre: str = None, nuevo_correo: str = None, edad: int = None):

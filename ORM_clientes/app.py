@@ -37,8 +37,8 @@ class App(ctk.CTk):
         self.crear_formulario_cliente(self.tab_clientes)
 
         # Pestaña de Panel de compra
-        #self.tab_clientes = self.tabview.add("Panel de compra")
-        #self.crear_formulario_cliente(self.tab_clientes)            #cambiar
+        self.tab_clientes = self.tabview.add("Panel de compra")
+        self.crear_formulario_panel_de_compra(self.tab_clientes)            #cambiar
 
         # Pestaña de Pedidos
         #self.tab_pedidos = self.tabview.add("Pedidos")
@@ -210,27 +210,30 @@ class App(ctk.CTk):
         frame_superior.pack(pady=10, padx=10, fill="x")
 
         ctk.CTkLabel(frame_superior, text="Menú").grid(row=0, column=0, pady=10, padx=10)
-        self.entry_nombre = ctk.CTkEntry(frame_superior)
-        self.entry_nombre.grid(row=0, column=1, pady=10, padx=10)
+        self.menu_panel = ctk.CTkComboBox(frame_superior)
+        self.menu_panel.grid(row=0, column=1, pady=10, padx=10)
+        self.actualizar_menu_combobox()
 
         # Combobox para seleccionar el email del cliente
-        self.combobox_cliente_email = ttk.Combobox(frame_superior, state="readonly")
-        self.combobox_cliente_email.grid(row=0, column=1, pady=10, padx=10)
+        ctk.CTkLabel(frame_superior, text="Clientes").grid(row=0, column=2, pady=10, padx=10)
+        self.combobox_cliente_email = ctk.CTkComboBox(frame_superior)
+        self.combobox_cliente_email.grid(row=0, column=3, pady=10, padx=10)
         self.actualizar_emails_combobox()  # Llenar el combobox con emails de los clientes
 
-        # Botones alineados horizontalmente en el frame superior
-        self.btn_crear_cliente = ctk.CTkButton(frame_superior, text="Agregar a la compra", command=self.crear_cliente)
-        self.btn_crear_cliente.grid(row=1, column=0, pady=10, padx=10)
+        # Botón para cargar compras
+        self.btn_agr_compra = ctk.CTkButton(frame_superior, text="Cargar compras", command=self.cargar_compras)
+        self.btn_agr_compra.grid(row=1, column=0, pady=10, padx=10)
 
         # Frame inferior para el Treeview
         frame_inferior = ctk.CTkFrame(parent)
         frame_inferior.pack(pady=10, padx=10, fill="both", expand=True)
 
         # Treeview para mostrar los clientes
-        self.treeview_clientes = ttk.Treeview(frame_inferior, columns=("Nombre", "Tipo"), show="headings")
-        self.treeview_clientes.heading("Nombre", text="Nombre")
-        self.treeview_clientes.heading("Tipo", text="Tipo")
-        self.treeview_clientes.pack(pady=10, padx=10, fill="both", expand=True)
+        self.treeview_panel = ttk.Treeview(frame_inferior, columns=("Nombre", "Menú", "Cantidad"), show="headings")
+        self.treeview_panel .heading("Nombre", text="Nombre")
+        self.treeview_panel.heading("Menú", text="Menú")
+        self.treeview_panel.heading("Cantidad", text="Cantidad")
+        self.treeview_panel.pack(pady=10, padx=10, fill="both", expand=True)
 
     def crear_formulario_pedido(self, parent):
         """Crea el formulario en el Frame superior y el Treeview en el Frame inferior para la gestión de pedidos."""
@@ -300,14 +303,65 @@ class App(ctk.CTk):
         self.treeview_clientes.heading("Tipo", text="Tipo")
         self.treeview_clientes.pack(pady=10, padx=10, fill="both", expand=True)
 
-    # Método para actualizar los correos electrónicos en el Combobox
+    # Método para actualizar los menús en el Combobox
+    def actualizar_menu_combobox(self):
+        """Llena el Combobox con los menus de los clientes."""
+        db = next(get_session())
+        menu = [menu.nombre for menu in MenuCRUD.leer_menus(db)]
+        self.menu_panel.configure(values=menu)
+        db.close()
+
+    def cargar_compras(self):
+        """Agrega los datos seleccionados al Treeview."""
+        # Obtener el menú seleccionado
+        menu_seleccionado = self.menu_panel.get()
+
+        # Validar si hay un menú seleccionado
+        if not menu_seleccionado:
+            ctk.messagebox.showerror("Error", "Por favor, selecciona un menú.")
+            return
+
+        # Obtener el cliente seleccionado
+        email_seleccionado = self.combobox_cliente_email.get()
+        if not email_seleccionado:
+            ctk.messagebox.showerror("Error", "Por favor, selecciona un cliente.")
+            return
+
+        # Conectar a la base de datos
+        db = next(get_session())
+
+        # Buscar el cliente y menú en la base de datos
+        cliente = ClienteCRUD.leer_cliente_por_email(db, email_seleccionado)
+        menu = MenuCRUD.leer_menu_por_nombre(db, menu_seleccionado)
+
+        if not cliente:
+            ctk.messagebox.showerror("Error", "Cliente no encontrado.")
+            db.close()
+            return
+
+        if not menu:
+            ctk.messagebox.showerror("Error", "Menú no encontrado.")
+            db.close()
+            return
+
+        # Obtener datos
+        nombre_cliente = cliente.nombre  # Cambiado de `cliente.e` a `cliente.nombre`
+        cantidad = 1  # Si no es parte del modelo `Menu`, mantenlo como un valor fijo
+
+        # Insertar en el Treeview
+        self.treeview_panel.insert("", "end", values=(nombre_cliente, menu_seleccionado, cantidad))
+
+        # Cerrar conexión
+        db.close()
+   
+   # Método para actualizar los correos electrónicos en el Combobox
     def actualizar_emails_combobox(self):
         """Llena el Combobox con los emails de los clientes."""
         db = next(get_session())
         emails = [cliente.email for cliente in ClienteCRUD.leer_clientes(db)]
-        self.combobox_cliente_email['values'] = emails
+        self.combobox_cliente_email.configure(values=emails)
         db.close()
-    
+
     # Métodos CRUD para Clientes
     def cargar_clientes(self):
         db = next(get_session())

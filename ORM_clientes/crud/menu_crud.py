@@ -94,3 +94,5 @@ class MenuCRUD:
         db.commit()
         print(f"Menú '{nombre}' eliminado exitosamente.")
         return menu
+
+    
