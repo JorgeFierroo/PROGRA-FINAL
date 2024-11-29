@@ -3,7 +3,7 @@ from models import Menu, MenuIngrediente, Ingrediente
 
 class MenuCRUD:
     @staticmethod
-    def crear_menu(db: Session, nombre: str, descripcion: str, ingredientes_con_cantidades: dict):
+    def crear_menu(db: Session, nombre: str, descripcion: str, precio: float, ingredientes_con_cantidades: dict):
         # Verificar si el menú ya existe
         menu_existente = db.query(Menu).filter_by(nombre=nombre).first()
         if menu_existente:
@@ -11,7 +11,7 @@ class MenuCRUD:
             return menu_existente
 
         # Crear el nuevo menú
-        nuevo_menu = Menu(nombre=nombre, descripcion=descripcion)
+        nuevo_menu = Menu(nombre=nombre, descripcion=descripcion, precio=precio)
         db.add(nuevo_menu)
         db.commit()  # Primero guardamos el menú en la base de datos
 

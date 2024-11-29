@@ -19,6 +19,7 @@ class Menu(Base):
     __tablename__ = "menus"
     nombre = Column(String, primary_key=True, nullable=False, unique=True)
     descripcion = Column(String, nullable=True)
+    precio = Column(Float, nullable=False)
 
     # Relación con la tabla intermedia
     menu_ingredientes = relationship("MenuIngrediente", back_populates="menu")

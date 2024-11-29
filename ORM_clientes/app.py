@@ -1,5 +1,8 @@
 import customtkinter as ctk
 from tkinter import messagebox, ttk
+from datetime import date
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 from database import get_session
 from crud.ingrediente_crud import IngredienteCRUD
 from crud.menu_crud import MenuCRUD
@@ -128,6 +131,15 @@ class App(ctk.CTk):
         self.entry_menu_descripcion = ctk.CTkEntry(frame_superior)
         self.entry_menu_descripcion.grid(row=0, column=3, pady=10, padx=10)
 
+        ctk.CTkLabel(frame_superior, text="Precio").grid(row=0, column=4, pady=10, padx=10)
+        self.entry_precio = ctk.CTkEntry(frame_superior)
+        self.entry_precio.grid(row=0, column=5, pady=10, padx=10)
+
+        # Botón para crear el menú
+        self.btn_crear_menu = ctk.CTkButton(frame_superior, text="Crear Menú", command=self.crear_menu)
+        self.btn_crear_menu.grid(row=0, column=6, columnspan=3, pady=10, padx=10)
+
+
         # Fila para seleccionar ingredientes
         ctk.CTkLabel(frame_superior, text="Seleccionar Ingredientes").grid(row=1, column=0, pady=10, padx=10)
         self.combobox_ingredientes = ttk.Combobox(frame_superior, state="readonly")
@@ -143,10 +155,6 @@ class App(ctk.CTk):
 
         self.btn_eliminar_ingrediente = ctk.CTkButton(frame_superior, text="Eliminar Ingrediente", command=self.quitar_ingrediente)
         self.btn_eliminar_ingrediente.grid(row=1, column=5, pady=10, padx=10)
-
-        # Botón para crear el menú
-        self.btn_crear_menu = ctk.CTkButton(frame_superior, text="Crear Menú", command=self.crear_menu)
-        self.btn_crear_menu.grid(row=0, column=4, columnspan=3, pady=10, padx=10)
 
         # Frame inferior
         frame_inferior = ctk.CTkFrame(parent)
@@ -228,12 +236,22 @@ class App(ctk.CTk):
         frame_inferior = ctk.CTkFrame(parent)
         frame_inferior.pack(pady=10, padx=10, fill="both", expand=True)
 
+        # Botón alinead horizontalmente en el frame inferior
+        self.btn_pdf = ctk.CTkButton(frame_inferior, text="Crear boleta", command=self.crear_boleta)
+        self.btn_pdf.grid(row=1, column=0, pady=10, padx=10)
+
         # Treeview para mostrar los clientes
-        self.treeview_panel = ttk.Treeview(frame_inferior, columns=("Nombre", "Menú", "Cantidad"), show="headings")
-        self.treeview_panel .heading("Nombre", text="Nombre")
+        self.treeview_panel = ttk.Treeview(frame_inferior, columns=("Cliente", "Menú", "Cantidad", "Precio"), show="headings")
+        self.treeview_panel .heading("Cliente", text="Cliente")
         self.treeview_panel.heading("Menú", text="Menú")
         self.treeview_panel.heading("Cantidad", text="Cantidad")
-        self.treeview_panel.pack(pady=10, padx=10, fill="both", expand=True)
+        self.treeview_panel.heading("Precio", text="Precio")
+        
+        self.treeview_panel.grid(row=0, column=0, pady=10, padx=10, sticky="nsew")
+
+        # Configuración de expansión para Treeview
+        frame_inferior.grid_rowconfigure(0, weight=1)
+        frame_inferior.grid_columnconfigure(0, weight=1)
 
     def crear_formulario_pedido(self, parent):
         """Crea el formulario en el Frame superior y el Treeview en el Frame inferior para la gestión de pedidos."""
@@ -303,6 +321,92 @@ class App(ctk.CTk):
         self.treeview_clientes.heading("Tipo", text="Tipo")
         self.treeview_clientes.pack(pady=10, padx=10, fill="both", expand=True)
 
+    def generar_pdf(self, cliente, menu_seleccionado, cantidad, total, fecha_creacion):
+        # Definir el nombre del archivo PDF
+        archivo_pdf = f"boleta_{cliente.nombre}_{fecha_creacion}.pdf"
+        
+        # Crear el objeto canvas (pdf)
+        c = canvas.Canvas(archivo_pdf, pagesize=letter)
+        
+        # Título
+        c.setFont("Helvetica", 16)
+        c.drawString(100, 750, "Boleta de Pedido")
+
+        # Datos del cliente
+        c.setFont("Helvetica", 12)
+        c.drawString(100, 730, f"Cliente: {cliente.nombre}")
+        c.drawString(100, 710, f"Email: {cliente.email}")
+        
+        # Detalles del pedido
+        c.drawString(100, 690, f"Menú: {menu_seleccionado}")
+        c.drawString(100, 670, f"Cantidad: {cantidad}")
+        c.drawString(100, 650, f"Total: {total} CLP")
+        
+        # Fecha de creación
+        c.drawString(100, 630, f"Fecha de creación: {fecha_creacion}")
+
+        # Guardar el PDF
+        c.save()
+    
+        return archivo_pdf
+    
+    def crear_boleta(self):
+        """Generar boleta y guardar en la base de datos."""
+
+        # Obtener los datos del Treeview (suponiendo que el usuario ya cargó los datos de cliente y menú)
+        item_seleccionado = self.treeview_panel.focus()
+        if not item_seleccionado:
+            messagebox.showerror("Error", "Por favor, selecciona un pedido.")
+            return
+
+        datos_pedido = self.treeview_panel.item(item_seleccionado)["values"]
+        nombre_cliente = datos_pedido[0]
+        menu_seleccionado = datos_pedido[1]
+        cantidad = datos_pedido[2]
+
+        # Conectar a la base de datos
+        db = next(get_session())
+
+        # Buscar el cliente y el menú
+        cliente = ClienteCRUD.leer_cliente_por_email(db, nombre_cliente)
+        menu = MenuCRUD.leer_menu_por_nombre(db, menu_seleccionado)
+
+        if not cliente:
+            messagebox.showerror("Error", "Cliente no encontrado.")
+            db.close()
+            return
+
+        if not menu:
+            messagebox.showerror("Error", "Menú no encontrado.")
+            db.close()
+            return
+
+        # Calcular el total del pedido (esto debe basarse en el precio del menú y la cantidad)
+        total = menu.precio * cantidad
+
+        # Fecha de creación
+        fecha_creacion = date.today()
+
+        # Crear la boleta en formato PDF
+        archivo_pdf = self.generar_pdf(cliente, menu_seleccionado, cantidad, total, fecha_creacion)
+
+        # Insertar el pedido en la base de datos
+        nuevo_pedido = PedidoCRUD(
+            descripcion=f"Pedido de {menu_seleccionado} para {cliente.nombre}",
+            total=total,
+            cantidad_menus=cantidad,
+            fecha_creacion=fecha_creacion,  # Se agrega la fecha de creación
+            cliente_id=cliente.id
+        )
+        db.add(nuevo_pedido)
+        db.commit()
+
+        # Mostrar un mensaje confirmando la creación de la boleta
+        messagebox.showinfo("Éxito", f"Boleta generada con éxito. El archivo PDF está en: {archivo_pdf}")
+
+        # Cerrar la conexión
+        db.close()
+
     # Método para actualizar los menús en el Combobox
     def actualizar_menu_combobox(self):
         """Llena el Combobox con los menus de los clientes."""
@@ -310,6 +414,8 @@ class App(ctk.CTk):
         menu = [menu.nombre for menu in MenuCRUD.leer_menus(db)]
         self.menu_panel.configure(values=menu)
         db.close()
+
+    
 
     def cargar_compras(self):
         """Agrega los datos seleccionados al Treeview."""
@@ -332,7 +438,7 @@ class App(ctk.CTk):
 
         # Buscar el cliente y menú en la base de datos
         cliente = ClienteCRUD.leer_cliente_por_email(db, email_seleccionado)
-        menu = MenuCRUD.leer_menu_por_nombre(db, menu_seleccionado)
+        menu = MenuCRUD.leer_menu_por_nombre(db, menu_seleccionado, )
 
         if not cliente:
             ctk.messagebox.showerror("Error", "Cliente no encontrado.")
@@ -345,11 +451,29 @@ class App(ctk.CTk):
             return
 
         # Obtener datos
-        nombre_cliente = cliente.nombre  # Cambiado de `cliente.e` a `cliente.nombre`
-        cantidad = 1  # Si no es parte del modelo `Menu`, mantenlo como un valor fijo
+        nombre_cliente = cliente.nombre  # Cambiado
+        cantidad = 1
+        precio = menu.precio  
+
+        # Verificar si ya existe una fila con este cliente y menú
+        for item in self.treeview_panel.get_children():
+            valores = self.treeview_panel.item(item, "values")
+            cliente_existente = valores[0]
+            menu_existente = valores[1]
+
+            if cliente_existente == nombre_cliente and menu_existente == menu_seleccionado:
+                # Actualizar la cantidad en la fila existente
+                cantidad_actual = int(valores[2])
+                cantidad += cantidad_actual
+                total_precio = cantidad * precio
+                self.treeview_panel.item(item, values=(nombre_cliente, menu_seleccionado, cantidad, total_precio))
+                db.close()
+                return
+            
+        total_precio = cantidad * precio
 
         # Insertar en el Treeview
-        self.treeview_panel.insert("", "end", values=(nombre_cliente, menu_seleccionado, cantidad))
+        self.treeview_panel.insert("", "end", values=(nombre_cliente, menu_seleccionado, cantidad, total_precio))
 
         # Cerrar conexión
         db.close()
@@ -590,9 +714,10 @@ class App(ctk.CTk):
 
     def crear_menu(self):
         db = next(get_session())
-        # Obtener el nombre y la descripción del menú
+        # Obtener el nombre, la descripción del menú y el precio
         nombre_menu = self.entry_menu_nombre.get()
         descripcion_menu = self.entry_menu_descripcion.get()
+        precio = float(self.entry_precio.get())
 
         if not nombre_menu or not descripcion_menu:
             # Mostrar un mensaje de error si falta el nombre o la descripción
@@ -600,7 +725,7 @@ class App(ctk.CTk):
             return
 
         # Crear un objeto Menu
-        nuevo_menu = Menu(nombre=nombre_menu, descripcion=descripcion_menu)
+        nuevo_menu = Menu(nombre=nombre_menu, descripcion=descripcion_menu, precio=precio)
 
         # Obtener los ingredientes del Treeview
         ingredientes_seleccionados = []
@@ -740,10 +865,11 @@ class App(ctk.CTk):
 
 
     def crear_menu(self):
-        """Crea un objeto Menu con su nombre, descripción y lista de ingredientes, y limpia el TreeView."""
+        """Crea un objeto Menu con su nombre, descripción, lista de ingredientes y precio , y limpia el TreeView."""
         nombre_menu = self.entry_menu_nombre.get().strip()
         descripcion_menu = self.entry_menu_descripcion.get().strip()
-
+        precio_menu = float(self.entry_precio.get())
+        
         if not nombre_menu:
             print("El nombre del menú no puede estar vacío.")
             return
@@ -758,7 +884,7 @@ class App(ctk.CTk):
                 return
 
             # Crear el objeto Menu
-            nuevo_menu = Menu(nombre=nombre_menu, descripcion=descripcion_menu)
+            nuevo_menu = Menu(nombre=nombre_menu, descripcion=descripcion_menu, precio=precio_menu)
 
             # Usar los ingredientes almacenados en la lista temporal
             for ingrediente_data in self.ingredientes_menu:
