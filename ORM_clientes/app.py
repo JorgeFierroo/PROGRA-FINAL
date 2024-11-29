@@ -62,7 +62,6 @@ class App(ctk.CTk):
         self.after(500, self.check_tab_change)  # Llama a check_tab_change cada 500 ms
 
         self.ingredientes_menu = []
-
     def check_tab_change(self):
         """Revisa si la pestaña activa cambió a 'Pedidos'."""
         new_tab = self.tabview.get()
@@ -70,6 +69,8 @@ class App(ctk.CTk):
             self.current_tab = new_tab
             if new_tab == "Pedidos":
                 self.actualizar_emails_combobox()
+            if new_tab == "Panel de compra":
+                self.actualizar_menu_combobox()
         self.after(500, self.check_tab_change)  # Vuelve a revisar cada 500 ms
 
 
