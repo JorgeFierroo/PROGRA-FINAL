@@ -482,13 +482,13 @@ class App(ctk.CTk):
 
         # Validar si hay un menú seleccionado
         if not menu_seleccionado:
-            ctk.messagebox.showerror("Error", "Por favor, selecciona un menú.")
+            messagebox.showerror("Error", "Por favor, selecciona un menú.")
             return
 
         # Obtener el cliente seleccionado
         email_seleccionado = self.combobox_cliente_email.get()
         if not email_seleccionado:
-            ctk.messagebox.showerror("Error", "Por favor, selecciona un cliente.")
+            messagebox.showerror("Error", "Por favor, selecciona un cliente.")
             return
 
         # Conectar a la base de datos
@@ -499,12 +499,12 @@ class App(ctk.CTk):
         menu = MenuCRUD.leer_menu_por_nombre(db, menu_seleccionado, )
 
         if not cliente:
-            ctk.messagebox.showerror("Error", "Cliente no encontrado.")
+            messagebox.showerror("Error", "Cliente no encontrado.")
             db.close()
             return
 
         if not menu:
-            ctk.messagebox.showerror("Error", "Menú no encontrado.")
+            messagebox.showerror("Error", "Menú no encontrado.")
             db.close()
             return
 
