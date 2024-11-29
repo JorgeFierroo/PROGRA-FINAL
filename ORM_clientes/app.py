@@ -267,14 +267,14 @@ class App(ctk.CTk):
 
         ctk.CTkLabel(frame_superior, text="Cliente Email").grid(row=0, column=0, pady=10, padx=10)
         
-        self.combobox_cliente_email = ttk.Combobox(frame_superior, state="readonly")
-        self.combobox_cliente_email.grid(row=0, column=1, pady=10, padx=10)
+        self.combobox_cliente_email_pedido = ttk.Combobox(frame_superior, state="readonly")
+        self.combobox_cliente_email_pedido.grid(row=0, column=1, pady=10, padx=10)
 
         # Llenar el combobox con emails de los clientes
         self.actualizar_emails_combobox()
 
         # Asociamos el evento de selección de un email a una función
-        self.combobox_cliente_email.bind("<<ComboboxSelected>>", self.cargar_pedidos_por_cliente)
+        self.combobox_cliente_email_pedido.bind("<<ComboboxSelected>>", self.cargar_pedidos_por_cliente)
 
 
         # Botones alineados horizontalmente en el frame superior
@@ -509,7 +509,7 @@ class App(ctk.CTk):
             return
 
         # Obtener datos
-        nombre_cliente = cliente.nombre  # Cambiado
+        nombre_cliente = cliente.email  # Cambiado
         cantidad = 1
         precio = menu.precio  
 
@@ -524,14 +524,14 @@ class App(ctk.CTk):
                 cantidad_actual = int(valores[2])
                 cantidad += cantidad_actual
                 total_precio = cantidad * precio
-                self.treeview_panel.item(item, values=(nombre_cliente, menu_seleccionado, cantidad, total_precio))
+                self.treeview_panel.item(item, values=(cliente.email, menu_seleccionado, cantidad, total_precio))
                 db.close()
                 return
             
         total_precio = cantidad * precio
 
         # Insertar en el Treeview
-        self.treeview_panel.insert("", "end", values=(nombre_cliente, menu_seleccionado, cantidad, total_precio))
+        self.treeview_panel.insert("", "end", values=(cliente.email, menu_seleccionado, cantidad, total_precio))
 
         # Cerrar conexión
         db.close()
