@@ -69,3 +69,5 @@ class Pedido(Base):
     # Relación con el cliente
     cliente_id = Column(Integer, ForeignKey('clientes.id'), nullable=False)
     cliente = relationship("Cliente", back_populates="pedidos")
+
+    

@@ -3,6 +3,8 @@ from sqlalchemy import func
 from database import get_session
 from models import Pedido, Menu, Ingrediente
 from datetime import datetime, timedelta
+from collections import defaultdict
+import re
 
 def graficar_ventas_por_fecha():
     """Genera un gráfico de barras para las ventas agrupadas por fecha."""
@@ -40,24 +42,53 @@ def graficar_menus_mas_comprados():
     """Genera un gráfico de torta para los menús más vendidos."""
     db = next(get_session())
     try:
-        # Consultar los menús más vendidos, sumando la cantidad de menús comprados
-        resultados = db.query(
-            Menu.nombre,
-            func.sum(Pedido.cantidad_menus).label("cantidad_vendida")
-        ).join(Pedido, Pedido.descripcion == Menu.nombre).group_by(Menu.nombre).order_by(func.sum(Pedido.cantidad_menus).desc()).all()
+        # Crear un mapeo entre nombres y descripciones de menús
+        menus_map = dict(db.query(Menu.nombre, Menu.descripcion).all())
+        print("Mapeo de Menús (nombre -> descripcion):", menus_map)
 
-        # Validar si hay datos
+        # Consultar las descripciones de los menús más vendidos en los pedidos
+        resultados = db.query(
+            Pedido.descripcion,
+            func.sum(Pedido.cantidad_menus).label("cantidad_vendida")
+        ).group_by(Pedido.descripcion) \
+         .order_by(func.sum(Pedido.cantidad_menus).desc()) \
+         .all()
+        print("Resultados de la consulta (descripcion -> cantidad_vendida):", resultados)
+
+        # Validar resultados
         if not resultados:
             print("No hay datos disponibles para los menús más vendidos.")
             return
 
-        # Extraer nombres y cantidades
-        menus = [resultado[0] for resultado in resultados]
-        cantidades = [resultado[1] for resultado in resultados]
+        # Procesar las descripciones para extraer nombres de menús
+        menu_cantidades = defaultdict(int)  # Almacena las cantidades agrupadas por menú
+
+        for descripcion, cantidad in resultados:
+            # Extraer el nombre del menú usando una expresión regular
+            match = re.search(r"Pedido de (\w+)", descripcion)
+            if match:
+                nombre_menu = match.group(1)
+                if nombre_menu in menus_map:
+                    menu_cantidades[nombre_menu] += cantidad
+                else:
+                    print(f"Nombre '{nombre_menu}' no encontrado en menus_map.")
+            else:
+                print(f"No se pudo extraer un nombre de menú de la descripción: {descripcion}")
+
+        # Convertir los resultados a listas separadas para el gráfico
+        nombres_menus = list(menu_cantidades.keys())
+        cantidades = list(menu_cantidades.values())
+
+        print("Nombres de menús:", nombres_menus)
+        print("Cantidades vendidas:", cantidades)
+
+        if not nombres_menus or sum(cantidades) == 0:
+            print("Datos insuficientes para generar el gráfico.")
+            return
 
         # Crear el gráfico
         plt.figure(figsize=(8, 8))
-        plt.pie(cantidades, labels=menus, autopct='%1.1f%%', startangle=140)
+        plt.pie(cantidades, labels=nombres_menus, autopct='%1.1f%%', startangle=140)
         plt.title("Distribución de Menús Más Comprados")
         plt.show()
     finally:
